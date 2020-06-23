@@ -2,7 +2,8 @@
 author: Philipp Marcus
 email: marcus@cip.ifi.lmu.de
 
-Calculates various metrics for a trained CrossV
+Calculates various metrics for a trained CrossValidatorModel and returns
+them as dict.
 """
 
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
