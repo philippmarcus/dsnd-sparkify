@@ -2,11 +2,11 @@
 author: Philipp Marcus
 email: marcus@cip.ifi.lmu.de
 
-A Naive Bayes-based pipeline for the Sparkify project
+Machine Learning pipelines based on PySpark for the Sparkify project
 that expects the feature extraction to already be applied before.
 """
 
-from pyspark.ml.feature import VectorAssembler, MaxAbsScaler
+from pyspark.ml.feature import VectorAssembler, MaxAbsScaler, StringIndexer
 from pyspark.ml.classification import NaiveBayes, LinearSVC, RandomForestClassifier, LogisticRegression
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
 from pyspark.ml import Pipeline
@@ -33,6 +33,9 @@ def ml_pipeline_factory(inputCols, classifier, param_gird=None):
 
 
     # Normalizer / Scaler
+    """
+    TODO do not scale dummy variables!ß
+    """
     maScaler = MaxAbsScaler(inputCol="features",
                             outputCol="features_scaled")
 
@@ -98,11 +101,10 @@ def build_naivebayes_pipeline(inputCols):
                     predictionCol='prediction')
 
     # Param grid for model optimization
-    grid = ParamGridBuilder().addGrid(nb.modelType, ["gaussian",
-                                                     "multinomial"]).build()
+    grid = ParamGridBuilder().addGrid(nb.modelType, ["multinomial"]).build()
 
     # Build the pipeline
-    pipe = ml_pipeline_factory(inputCols, svm, grid)
+    pipe = ml_pipeline_factory(inputCols, nb, grid)
     return pipe
 
 
