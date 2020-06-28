@@ -34,7 +34,7 @@ def ml_pipeline_factory(inputCols, classifier, param_gird=None):
 
     # Normalizer / Scaler
     """
-    TODO do not scale dummy variables!ß
+    TODO Apply Standardization instead of scaling to account for outliers
     """
     maScaler = MaxAbsScaler(inputCol="features",
                             outputCol="features_scaled")

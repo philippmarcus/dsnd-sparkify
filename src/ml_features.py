@@ -272,7 +272,7 @@ def add_avg_page_clicks_p_sess(spark):
     return features_df
 
 
-def feature_extraction_pipe2(spark):
+def feature_extraction_pipe(spark):
     """
     Final feature extraction pipeline.
     Input:
