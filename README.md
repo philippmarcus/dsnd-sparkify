@@ -30,6 +30,7 @@ The project contains the following files:
 .
 ├── README.md
 ├── Sparkify.ipynb (Main Notebook)
+├── Sparkify.html (Main Notebook HTML version)
 ├── img (Images used in the writeup)
 ├── model (Trained machine learning models)
 ├── requirements.txt (Required python packages)
