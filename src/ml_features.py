@@ -4,14 +4,14 @@ email: marcus@cip.ifi.lmu.de
 
 Feature Extraction pipeline based on PySpark for the Sparkify project.
 """
-
+import sys
 from pyspark.sql.functions import udf
 from pyspark.sql.types import FloatType, IntegerType
 from pyspark.sql import SparkSession
 from pyspark.ml.feature import OneHotEncoder, StringIndexer
 import datetime
 
-def initiate_df(spark, new_temp_view='features_df'):
+def initiate_df(spark, input_file, new_temp_view='features_df'):
     """
     Produces a Spark RDD that contains one row per userId incl.
     its churn status. Further columns for features are added by
@@ -21,6 +21,10 @@ def initiate_df(spark, new_temp_view='features_df'):
     Input:
         - spark (SparkSession): A initiated pyspark.sql.SparkSession
     """
+    # Read in from parquet - temp view is also needed in later pipeline steps
+    df = spark.read.parquet(input_file)
+    df.createOrReplaceTempView('df_table')
+
     # DataFrame for extracted features - to be filled up below
     features_df = spark.sql('''
                             SELECT userId, MAX(churn) as churn
@@ -47,6 +51,10 @@ def define_udfs(spark):
     # Extract hour of the day from timestamp in ms
     to_hour = udf(lambda x: float(datetime.datetime.fromtimestamp(x / 1000.0).hour), FloatType())
     spark.udf.register("to_hour", to_hour)
+
+    # Extract month of the year from timestamp in ms
+    to_month = udf(lambda x: float(datetime.datetime.fromtimestamp(x / 1000.0).month), FloatType())
+    spark.udf.register("to_month", to_month)
 
 
 def add_features(spark, sub_query, feature_names, new_temp_view='features_df'):
@@ -218,7 +226,8 @@ def add_pref_user_system(spark):
                         outputCol="pref_user_system_ohe", 
                         dropLast=True)
 
-    features_df = ohe.transform(features_df)
+    ohe_model = ohe.fit(features_df)
+    features_df = ohe_model.transform(features_df)
     features_df.createOrReplaceTempView("features_df")
 
     return features_df
@@ -272,7 +281,7 @@ def add_avg_page_clicks_p_sess(spark):
     return features_df
 
 
-def feature_extraction_pipe(spark):
+def feature_extraction_pipe(input_file, output_file):
     """
     Final feature extraction pipeline.
     Input:
@@ -281,7 +290,13 @@ def feature_extraction_pipe(spark):
         - features_df (DataFrame): Result DataFrame with the created features
     """
     # Initiation
-    initiate_df(spark)
+    spark = SparkSession \
+                    .builder \
+                    .appName("Sparkify") \
+                    .getOrCreate()
+                    
+    initiate_df(spark, input_file)
+
     define_udfs(spark)
 
     # Feature extraction
@@ -291,6 +306,17 @@ def feature_extraction_pipe(spark):
     add_acc_age_days(spark)
     add_avg_sess_length_min(spark)
     add_gender_dummy_vars(spark)
-    add_pref_user_system(spark)
+    features_df =add_pref_user_system(spark) # fail
     features_df = add_avg_page_clicks_p_sess(spark)
-    return features_df
+
+    # save the dataframe
+    features_df.write.parquet(output_file)
+
+if __name__ == "__main__":
+
+    if len(sys.argv)== 3:
+        print("Starting spark job...")
+        sys.exit(feature_extraction_pipe(input_file = sys.argv[1], output_file = sys.argv[2]))
+    else:
+        print("params", sys.argv)
+        print("WARNING: parameters for ml_clean_data.py not readable.")
