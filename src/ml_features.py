@@ -10,6 +10,7 @@ from pyspark.sql.types import FloatType, IntegerType
 from pyspark.sql import SparkSession
 from pyspark.ml.feature import OneHotEncoder, StringIndexer
 import datetime
+import optparse
 
 def initiate_df(spark, input_file, new_temp_view='features_df'):
     """
@@ -280,8 +281,55 @@ def add_avg_page_clicks_p_sess(spark):
 
     return features_df
 
+def downsampling_churned_users(spark, features_df):
+    """
+    In order to balance the classses, the positive (`churn` = 1) examples are all used,
+    and the set of negative examples is down-sampled according to the ratio of negative
+    to positive samples.
+    Input:
+        - spark (SparkSession): A initiated pyspark.sql.SparkSession
+        - features_df (DataFrame): Pre-processed data with extracted features
+    Output:
+        - features_df_bal (DataFrame): DataFrame with down-sampled churn=1 entries
+    """
+    # Extract positive and negative samples
+    churn_neg_samples = features_df.filter(features_df.churn == 0)
+    churn_pos_samples = features_df.filter(features_df.churn == 1)
 
-def feature_extraction_pipe(input_file, output_file):
+    # Compute counts of both sets
+    churn_neg_cnt = churn_neg_samples.count()
+    churn_pos_cnt = churn_pos_samples.count()
+
+    # Ratio of positive examples
+    pos_ratio = (float(churn_pos_cnt) / (churn_neg_cnt))
+
+    # Perform the sub-sampling of negative examples
+    sampled = churn_neg_samples.sample(False, pos_ratio)
+
+    # Union sub-sampled negative examples with positive examples
+    features_df_bal = sampled.union(churn_pos_samples)
+    features_df_bal.createOrReplaceTempView("features_df")
+
+    return features_df_bal
+
+def train_test_val_split(spark, features_df):
+    """
+    The data set is split into two parts, a `train_test` set, that is used for 3-fold cross-validation,
+    and a `validation` set. This function should be called after the balancing of churned users
+    and all other feature extraction steps are completed.
+    Input:
+        - spark (SparkSession): A initiated pyspark.sql.SparkSession
+        - features_df (DataFrame): Pre-processed data with extracted features
+    Output:
+        - train_test (DataFrame): DataFrame to be used in Training/Test for a CrossValidator
+        - train_test (DataFrame): DataFrame to be used in Validation of a trained ML model
+    """
+    # Split data for training/test and validation
+    train_test, validation = features_df.randomSplit([0.9, 0.1], seed=42)
+
+    return train_test, validation
+
+def feature_extraction_pipe(input_file, output_file_train_test, output_file_validation):
     """
     Final feature extraction pipeline.
     Input:
@@ -309,14 +357,26 @@ def feature_extraction_pipe(input_file, output_file):
     features_df =add_pref_user_system(spark) # fail
     features_df = add_avg_page_clicks_p_sess(spark)
 
+    # Down-sampling of the churn=1 class to avoid bias
+    features_df = downsampling_churned_users(spark, features_df)
+
+    # Split to training/test and validation data
+    train_test, validation = train_test_val_split(spark, features_df)
+
     # save the dataframe
-    features_df.write.parquet(output_file)
+    train_test.write.parquet(output_file_train_test)
+    validation.write.parquet(output_file_validation)
 
 if __name__ == "__main__":
 
-    if len(sys.argv)== 3:
-        print("Starting spark job...")
-        sys.exit(feature_extraction_pipe(input_file = sys.argv[1], output_file = sys.argv[2]))
-    else:
-        print("params", sys.argv)
-        print("WARNING: parameters for ml_clean_data.py not readable.")
+    p = optparse.OptionParser()
+    p.add_option('--input', '-i', default="data/sparkify_cleaned.parquet")
+    p.add_option('--traintest', '-t', default="data/sparkify_train_test.parquet")
+    p.add_option('--validation', '-v', default="data/sparkify_validation.parquet")
+    options, arguments = p.parse_args()
+    print(options.validation)
+
+    print("Starting spark job...")
+    print(sys.argv)
+    args = sys.argv[1].split(",")
+    sys.exit(feature_extraction_pipe(input_file = options.input, output_file_train_test = options.traintest, output_file_validation = options.validation))

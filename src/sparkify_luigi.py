@@ -71,14 +71,14 @@ class FeatureExtractor(luigi.contrib.spark.SparkSubmitTask):
     master = 'local[*]'
 
     def output(self):
-        return luigi.LocalTarget(local_folder + 'df_features.parquet')
+        return {'train_test':luigi.LocalTarget(local_folder + 'df_features_train_test.parquet'),
+                'validation':luigi.LocalTarget(local_folder + 'df_features_validation.parquet')}
 
     def requires(self):
         return DataCleaner()
 
     def app_options(self):
-        return [self.input().path, self.output().path]
-
+        return [self.input().path, self.output()['train_test'].path, self.output()['validation'].path]
 
 if __name__ == "__main__":
     """
