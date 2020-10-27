@@ -16,7 +16,7 @@ click==7.1.2
 cloudpickle @ file:///home/conda/feedstock_root/build_artifacts/cloudpickle_1588164361239/work
 conda==4.8.2
 conda-package-handling==1.6.0
-cryptography==2.9.2
+cryptography==3.2
 cycler==0.10.0
 Cython @ file:///home/conda/feedstock_root/build_artifacts/cython_1591799499719/work
 cytoolz==0.10.1
