@@ -1,10 +1,12 @@
 # Sparkify
 
-Sparkify is a fictional music streaming service, comparable to Spotify. In this project, a user log of approx. 12 GB is given. The entries contain all events created by single users, e.g. by logging in, selecting the next song, or liking a song. 
+This project is the cap-stone project of the Udacity Data Science Nano-degree. It shows a full big data machine learning project written in Apache Spark and executed on an AWS Elastic Map Reduce (EMR) cluster with AWS Stepfunctions.
+
+Sparkify is a fictional music streaming service, comparable to Spotify. Udacity provides a Sparkify user event log that spans 60 full days and contains all events created by each single user, e.g. by logging in, selecting the next song, or liking a song. In this project, a user log of approx. 12 GB is given. The entries contain all events created by single users, e.g. by logging in, selecting the next song, or liking a song. 
 
 Some users within this event log cancelled their subscription. The goal of this project is to predict for a given trace of user evens whether this user is likely to cancel his subscription and consequently stop to use Sparkify.
 
-The technical solution is based on PySpark and Jupyter Notebook. It is executable on Amazon EMR.
+The blog post to this project with a detailled description can be found on [my blog](www.google.de).
 
 ## Project results
 
@@ -12,7 +14,7 @@ The results can be found in the write-up [here](https://github.com/philippmarcus
 
 ## Usage instructions
 
-1. Start a local `jupyter-pyspark` container by executing `./start_pyspark.sh`
+1. Start a standard, local `jupyter-pyspark` container from the Dockerhub registry by executing `./start_pyspark.sh`
 2. Open the URL shown in the command line in your web browser
 3. Execute the Jupyter Notebook 
 
@@ -21,6 +23,32 @@ The data is not contained in this repo and needs to be downloaded from the follo
 - Full Sparkify Dataset (12Gb): <s3n://udacity-dsnd/sparkify/sparkify_event_data.json>
 - Mini Sparkify Dataset (123Mb): <s3n://udacity-dsnd/sparkify/mini_sparkify_event_data.json>
 
+## Execution on AWS EMR
+
+The project includes AWS Stepfunctions to automate the shown workflow on an AWS EMR cluster:
+- `create-emr-cluster`: Stepfunction to create an AWS EMR cluster. Execution requires an IAM policy with assigned *service-linked role* policy (see [here](https://docs.aws.amazon.com/emr/latest/ManagementGuide/using-service-linked-roles.html)).
+- `data-pre-processing`: Stepfunction that loads the full dataset and applies the data cleaning and feature extraction as shown in this notebook.
+- `ml-training-validation`: Stepfunction to execute the ML trainings and ML evaluations of as shown in this notebook.
+- `terminate-emr-cluster`: Stepfunction to create an AWS EMR cluster. Execution requires an IAM policy with assigned *service-linked role* policy (see [here](https://docs.aws.amazon.com/emr/latest/ManagementGuide/using-service-linked-roles.html)).
+
+***Step 1: Create an S3 bucket***
+Create an S3 bucket to store the python code for later execution on the EMR cluster. The bucket should not be public and you can stay with the default settings, as the standard IAM role used for EMR will be able to access all S3 buckets.
+
+***Step 2: Prepare files***
+Prerequisites for all Stepfunctions except `create-emr-cluster`: replace all `<Placeholder>` by your respective `s3://...` bucket paths. The Stepfunctions by default refer to the full dataset.
+
+***Step 3: Upload files***
+Upload all files of folder `/src/*` to your newly created S3 bucket. Also include the file `/scripts/bootstrap-modules.sh`, which will be called while bootstrapping your EMR cluster to install all required python modules.
+
+***Step 3: Register the Stepfunctions***
+Register the Stepfunctions as in folder `/stepfunctions/` of this folder.
+
+***Step 4: Run the Stepfunctions***
+Start the execution of the Stepfunctions in this order:
+1. `create-emr-cluster`, note down the `ClusterId` in the output
+2. `data-pre-processing`, take care to define the correct input, e.g. `{ "ClusterId": "-1AZ82NTT1MZRG"}`
+3. `ml-training-validation`, take care to define the correct input, e.g. `{ "ClusterId": "-1AZ82NTT1MZRG"}`
+4. `terminate-emr-cluster`, take care to define the correct input, e.g. `{ "ClusterId": "-1AZ82NTT1MZRG"}`
 
 ## Files
 
@@ -47,6 +75,7 @@ See `requirements.txt`, basically the project requires pyspark, pandas, numpy, J
 ## Acknowledgements
 
 Thanks to Udacity for providing the data set and project idea.
+
 
 # Sparkify - Technical Project Description
 
@@ -78,7 +107,7 @@ The data sets are provided by Udacity in the following locations:
 Before the machine learning model can be selected and trained, the right performance measure for the Sparkify problem needs to be defined:
 
 - Precision: `TP / (TP + FP)` - describes the percentage, when a reported cancelling user really was a cancelling user.
-- Recall: `TP / (TP + FN)` - describes the percentage of cancelling users that were correctly detected.
+- Recall: `TP / (TP + FN)` - describes the percentage of cancelling users that were correctly detected by the model.
 - F1: Harmonic mean between Precision and Recall. Favors such models that have a balanced ratio of Precision and Recall.
 
 In this project, the output of the classificator will be used to offer discounts to users in order to avoid their cancellation. The right tradeoff between precision and recall decides between loosing revenue by granting unnecessary discounts or loosing revenue by not properly care for users that might cancel soon.
