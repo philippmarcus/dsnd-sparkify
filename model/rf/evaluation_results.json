@@ -1,0 +1,1 @@
+{"model_path": "s3://sparkify-pmarcus/models/rf/", "recall": 0.8201796363100936, "precision": 0.8205126833538312, "accuracy": 0.8201796363100935, "f1": 0.8201350404111338}

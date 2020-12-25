@@ -1,0 +1,92 @@
+{
+  "Comment": "An example of the Amazon States Language for running jobs on Amazon EMR and returns then ClusterId as result.",
+  "StartAt": "Create EMR cluster",
+  "States": {
+    "Create EMR cluster": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::elasticmapreduce:createCluster.sync",
+      "Parameters": {
+        "Name": "SparkifyCluster",
+        "VisibleToAllUsers": true,
+        "ReleaseLabel": "emr-6.2.0",
+        "Applications": [
+          { "Name": "Spark" },
+          { "Name": "Hadoop" },
+          { "Name": "Livy" },
+          { "Name": "Hive" },
+          { "Name": "JupyterHub" }
+        ],
+        "BootstrapActions": [
+          { 
+             "Name": "PythonLibraries",
+             "ScriptBootstrapAction": { 
+                "Path": "s3://sparkify-pmarcus/bootstrap-modules.sh"
+             }
+          }
+         ],
+         "Configurations": [
+          {
+            "Classification": "jupyter-s3-conf",
+            "Properties": {
+                "s3.persistence.enabled": "true",
+                "s3.persistence.bucket": "sparkify-pmarcus"
+            }
+        }
+       ],
+        "ServiceRole": "EMR_DefaultRole",
+        "JobFlowRole": "EMR_EC2_DefaultRole",
+        "LogUri": "s3://stepfunctions-emrproject-272999226472-ap-southeast-1/logs/",
+        "Instances": {
+          "Ec2KeyName" : "ap-southeast-1",
+          "KeepJobFlowAliveWhenNoSteps": true,
+          "InstanceFleets": [
+            {
+              "Name": "MyMasterFleet",
+              "InstanceFleetType": "MASTER",
+              "TargetOnDemandCapacity": 1,
+              "InstanceTypeConfigs": [
+                {
+                  "InstanceType": "m5.xlarge"
+                }
+              ]
+            },
+            {
+              "Name": "MyCoreFleet",
+              "InstanceFleetType": "CORE",
+              "TargetOnDemandCapacity": 2,
+              "InstanceTypeConfigs": [
+                {
+                  "InstanceType": "m5.xlarge"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "ResultSelector": {
+        "ClusterId.$": "$.ClusterId"
+      },
+      
+     "Next": "Create JupyterHub Users"
+    },
+    "Create JupyterHub Users": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+      "Parameters": {
+          "ClusterId.$": "$.ClusterId",
+          "Step": {
+              "Name": "Custom JAR",
+              "ActionOnFailure": "CONTINUE",
+              "HadoopJarStep": {
+                  "Jar": "s3://ap-southeast-1.elasticmapreduce/libs/script-runner/script-runner.jar",
+                  "Args": [
+                    "s3://sparkify-pmarcus/createjupyterusers.sh"
+                  ]
+              }
+          }
+      },
+      "ResultPath": "$.ClusterId",
+      "End": true
+  }
+  }
+}

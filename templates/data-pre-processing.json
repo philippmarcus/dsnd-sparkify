@@ -1,0 +1,50 @@
+{
+    "Comment": "An example of the Amazon States Language for running jobs on Amazon EMR",
+    "StartAt": "ml_clean_data.py",
+    "States": {
+      "ml_clean_data.py": {
+          "Type": "Task",
+          "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+          "Parameters": {
+              "ClusterId.$": "$.ClusterId",
+              "Step": {
+                  "Name": "Custom JAR",
+                  "ActionOnFailure": "CONTINUE",
+                  "HadoopJarStep": {
+                      "Jar": "command-runner.jar",
+                      "Args": [
+                         "spark-submit", 
+                         "s3://sparkify-pmarcus/ml_clean_data.py",
+                         "-i", "s3://udacity-dsnd/sparkify/sparkify_event_data.json",
+                         "-o", "s3://sparkify-pmarcus/sparkify_cleaned.parquet/"
+                      ]
+                  }
+              }
+          },
+          "ResultPath": "$.StepOutput",
+          "Next": "ml_features.py"
+      },
+      "ml_features.py": {
+          "Type": "Task",
+          "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+          "Parameters": {
+              "ClusterId.$": "$.ClusterId",
+              "Step": {
+                  "Name": "Custom JAR",
+                  "ActionOnFailure": "CONTINUE",
+                  "HadoopJarStep": {
+                      "Jar": "command-runner.jar",
+                      "Args": [
+                         "spark-submit", 
+                         "s3://sparkify-pmarcus/ml_features.py",
+                         "-i", "s3://sparkify-pmarcus/sparkify_cleaned.parquet/",
+                         "-t", "s3://sparkify-pmarcus/sparkify_train_test.parquet/",
+                         "-v", "s3://sparkify-pmarcus/sparkify_validation.parquet/"
+                      ]
+                  }
+              }
+          },
+          "ResultPath": "$.StepOutput",
+          "End": true
+      }
+  }}

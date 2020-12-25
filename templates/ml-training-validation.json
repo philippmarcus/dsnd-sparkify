@@ -1,0 +1,186 @@
+{
+    "Comment": "Requires the data-pre-processing to be completed first. Trains the ML model and evaluates it against Recall, Precision and F1. Stores the results in the model folder. Input is required as a ClusterId field, that defines the ID of the EMR cluster to be used.",
+    "StartAt": "ml_pipe_factory.py (svm)",
+    "States": {
+        "ml_pipe_factory.py (svm)": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+            "Parameters": {
+                "ClusterId.$": "$.ClusterId",
+                "Step": {
+                    "Name": "Custom JAR",
+                    "ActionOnFailure": "CONTINUE",
+                    "HadoopJarStep": {
+                        "Jar": "command-runner.jar",
+                        "Args": [
+                          "spark-submit",
+                          "s3://sparkify-pmarcus/ml_pipe_factory.py",
+                          "-a","svm",
+                          "-i","s3://sparkify-pmarcus/sparkify_train_test.parquet/",
+                          "-o","s3://sparkify-pmarcus/models/svm/"
+                        ]
+                    }
+                }
+            },
+            "ResultPath": "$.StepOutput",
+            "Next": "ml_evaluator.py (svm)"
+        },
+        "ml_evaluator.py (svm)": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+            "Parameters": {
+                "ClusterId.$": "$.ClusterId",
+                "Step": {
+                    "Name": "Custom JAR",
+                    "ActionOnFailure": "CONTINUE",
+                    "HadoopJarStep": {
+                        "Jar": "command-runner.jar",
+                        "Args": [
+                            "spark-submit",
+                            "s3://sparkify-pmarcus/ml_evaluator.py",
+                            "-i", "s3://sparkify-pmarcus/sparkify_validation.parquet/",
+                            "-m", "s3://sparkify-pmarcus/models/svm/"
+                        ]
+                    }
+                }
+            },
+            "ResultPath": "$.StepOutput",
+            "Next": "ml_pipe_factory.py (nb)"
+        },
+            "ml_pipe_factory.py (nb)": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+            "Parameters": {
+                "ClusterId.$": "$.ClusterId",
+                "Step": {
+                    "Name": "Custom JAR",
+                    "ActionOnFailure": "CONTINUE",
+                    "HadoopJarStep": {
+                        "Jar": "command-runner.jar",
+                        "Args": [
+                          "spark-submit",
+                          "s3://sparkify-pmarcus/ml_pipe_factory.py",
+                          "-a","nb",
+                          "-i","s3://sparkify-pmarcus/sparkify_train_test.parquet/",
+                          "-o","s3://sparkify-pmarcus/models/nb/"
+                        ]
+                    }
+                }
+            },
+            "ResultPath": "$.StepOutput",
+            "Next": "ml_evaluator.py (nb)"
+        },
+        "ml_evaluator.py (nb)": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+            "Parameters": {
+                "ClusterId.$": "$.ClusterId",
+                "Step": {
+                    "Name": "Custom JAR",
+                    "ActionOnFailure": "CONTINUE",
+                    "HadoopJarStep": {
+                        "Jar": "command-runner.jar",
+                        "Args": [
+                            "spark-submit",
+                            "s3://sparkify-pmarcus/ml_evaluator.py",
+                            "-i", "s3://sparkify-pmarcus/sparkify_validation.parquet/",
+                            "-m", "s3://sparkify-pmarcus/models/nb/"
+                        ]
+                    }
+                }
+            },
+            "ResultPath": "$.StepOutput",
+            "Next": "ml_pipe_factory.py (lr)"
+        },
+            "ml_pipe_factory.py (lr)": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+            "Parameters": {
+                "ClusterId.$": "$.ClusterId",
+                "Step": {
+                    "Name": "Custom JAR",
+                    "ActionOnFailure": "CONTINUE",
+                    "HadoopJarStep": {
+                        "Jar": "command-runner.jar",
+                        "Args": [
+                          "spark-submit",
+                          "s3://sparkify-pmarcus/ml_pipe_factory.py",
+                          "-a","lr",
+                          "-i","s3://sparkify-pmarcus/sparkify_train_test.parquet/",
+                          "-o","s3://sparkify-pmarcus/models/lr/"
+                        ]
+                    }
+                }
+            },
+            "ResultPath": "$.StepOutput",
+            "Next": "ml_evaluator.py (lr)"
+        },
+        "ml_evaluator.py (lr)": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+            "Parameters": {
+                "ClusterId.$": "$.ClusterId",
+                "Step": {
+                    "Name": "Custom JAR",
+                    "ActionOnFailure": "CONTINUE",
+                    "HadoopJarStep": {
+                        "Jar": "command-runner.jar",
+                        "Args": [
+                            "spark-submit",
+                            "s3://sparkify-pmarcus/ml_evaluator.py",
+                            "-i", "s3://sparkify-pmarcus/sparkify_validation.parquet/",
+                            "-m", "s3://sparkify-pmarcus/models/lr/"
+                        ]
+                    }
+                }
+            },
+            "ResultPath": "$.StepOutput",
+            "Next": "ml_pipe_factory.py (rf)"
+        },
+            "ml_pipe_factory.py (rf)": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+            "Parameters": {
+                "ClusterId.$": "$.ClusterId",
+                "Step": {
+                    "Name": "Custom JAR",
+                    "ActionOnFailure": "CONTINUE",
+                    "HadoopJarStep": {
+                        "Jar": "command-runner.jar",
+                        "Args": [
+                          "spark-submit",
+                          "s3://sparkify-pmarcus/ml_pipe_factory.py",
+                          "-a","rf",
+                          "-i","s3://sparkify-pmarcus/sparkify_train_test.parquet/",
+                          "-o","s3://sparkify-pmarcus/models/rf/"
+                        ]
+                    }
+                }
+            },
+            "ResultPath": "$.StepOutput",
+            "Next": "ml_evaluator.py (rf)"
+        },
+        "ml_evaluator.py (rf)": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+            "Parameters": {
+                "ClusterId.$": "$.ClusterId",
+                "Step": {
+                    "Name": "Custom JAR",
+                    "ActionOnFailure": "CONTINUE",
+                    "HadoopJarStep": {
+                        "Jar": "command-runner.jar",
+                        "Args": [
+                            "spark-submit",
+                            "s3://sparkify-pmarcus/ml_evaluator.py",
+                            "-i", "s3://sparkify-pmarcus/sparkify_validation.parquet/",
+                            "-m", "s3://sparkify-pmarcus/models/rf/"
+                        ]
+                    }
+                }
+            },
+            "ResultPath": "$.StepOutput",
+            "End": true
+        }
+    }
+  }

@@ -1,0 +1,1 @@
+{"class":"org.apache.spark.ml.feature.MaxAbsScalerModel","timestamp":1608868911416,"sparkVersion":"3.0.1-amzn-0","uid":"MaxAbsScaler_59ca2725147c","paramMap":{"outputCol":"features_scaled","inputCol":"features"},"defaultParamMap":{"outputCol":"MaxAbsScaler_59ca2725147c__output"}}
