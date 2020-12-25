@@ -1,0 +1,1 @@
+{"model_path": "s3://sparkify-pmarcus/models/nb/", "recall": 0.6305860266509608, "precision": 0.7034425345251782, "accuracy": 0.6305860266509609, "f1": 0.594386251806162}

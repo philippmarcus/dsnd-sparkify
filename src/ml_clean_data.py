@@ -7,7 +7,7 @@ Data cleaning pipeline based on PySpark for the Sparkify project.
 
 import sys
 from pyspark.sql import SparkSession
-
+import optparse, sys
 import logging
 
 def load_data(spark, input_file="mini_sparkify_event_data.json"):
@@ -135,10 +135,11 @@ def execute_pipeline(input_file, output_file):
     df.write.parquet(output_file)
 
 if __name__ == "__main__":
+    p = optparse.OptionParser()
+    p = optparse.OptionParser()
+    p.add_option('--input_file', '-i', default="s3://udacity-dsnd/sparkify/mini_sparkify_event_data.json")
+    p.add_option('--output_file', '-o', default="s3://sparkify-pmarcus/sparkify_cleaned.parquet/")
+    options, arguments = p.parse_args()
 
-    if len(sys.argv)== 3:
-        print("Starting spark job...")
-        sys.exit(execute_pipeline(input_file = sys.argv[1], output_file = sys.argv[2]))
-    else:
-        print("params", sys.argv)
-        print("WARNING: parameters for ml_clean_data.py not readable.")
+    print("Starting spark job...")
+    sys.exit(execute_pipeline(input_file = options.input_file, output_file = options.output_file))

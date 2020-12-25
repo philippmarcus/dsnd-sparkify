@@ -5,7 +5,7 @@ email: marcus@cip.ifi.lmu.de
 Feature Extraction pipeline based on PySpark for the Sparkify project.
 """
 import sys
-from pyspark.sql.functions import udf
+from pyspark.sql.functions import udf, when
 from pyspark.sql.types import FloatType, IntegerType
 from pyspark.sql import SparkSession
 from pyspark.ml.feature import OneHotEncoder, StringIndexer
@@ -127,6 +127,7 @@ def add_avg_items_p_sess(spark):
                         GROUP BY userId
                         """
     features_df = add_features(spark, avg_items_p_sess, ['avg_items_p_sess'])
+    return features_df
 
 
 def add_acc_age_days(spark):
@@ -212,7 +213,7 @@ def add_pref_user_system(spark):
                     """
     features_df = add_features(spark, pref_user_system, ['pref_user_system'])
 
-    # Fill null values
+    # Fill null values of the operating system, i.e. "unknown"
     features_df = features_df.fillna("unknown", subset=['pref_user_system'])
 
     # Index the prefered user system (macos, iphone etc...)
@@ -259,7 +260,7 @@ def add_avg_page_clicks_p_sess(spark):
             """)
     tmp2.createOrReplaceTempView("tmp2")
 
-    # Create a pivot, fill empty values with 0 and drop the column 'Cancellation Confirmation', as this is our label
+    # Create a pivot, fill empty values with 0 and drop the column 'Cancellation Confirmation' as this directly correlates with our label
     pages_pivot_df = tmp2.groupBy("userId").pivot("page").sum("avg_mhly_cnt").fillna(0).drop("Cancellation Confirmation")
 
     # Remove spaces from column names
@@ -281,17 +282,7 @@ def add_avg_page_clicks_p_sess(spark):
 
     return features_df
 
-def downsampling_churned_users(spark, features_df):
-    """
-    In order to balance the classses, the positive (`churn` = 1) examples are all used,
-    and the set of negative examples is down-sampled according to the ratio of negative
-    to positive samples.
-    Input:
-        - spark (SparkSession): A initiated pyspark.sql.SparkSession
-        - features_df (DataFrame): Pre-processed data with extracted features
-    Output:
-        - features_df_bal (DataFrame): DataFrame with down-sampled churn=1 entries
-    """
+def add_instance_weights(spark, features_df):
     # Extract positive and negative samples
     churn_neg_samples = features_df.filter(features_df.churn == 0)
     churn_pos_samples = features_df.filter(features_df.churn == 1)
@@ -300,17 +291,16 @@ def downsampling_churned_users(spark, features_df):
     churn_neg_cnt = churn_neg_samples.count()
     churn_pos_cnt = churn_pos_samples.count()
 
-    # Ratio of positive examples
-    pos_ratio = (float(churn_pos_cnt) / (churn_neg_cnt))
+    # Weights of both classes have to sum up to 0.5. Thus count/0.5 is the weight.
+    churn_pos_instance_weight = 0.5 / churn_pos_cnt
+    churn_neg_instance_weight = 0.5 / churn_neg_cnt
 
-    # Perform the sub-sampling of negative examples
-    sampled = churn_neg_samples.sample(False, pos_ratio)
-
-    # Union sub-sampled negative examples with positive examples
-    features_df_bal = sampled.union(churn_pos_samples)
-    features_df_bal.createOrReplaceTempView("features_df")
-
-    return features_df_bal
+    # Add weights to weightCol for each instance
+    features_df = features_df.withColumn("weightCol", \
+              when(features_df["churn"] == 0, churn_neg_instance_weight).otherwise(churn_pos_instance_weight))
+    
+    return features_df
+    
 
 def train_test_val_split(spark, features_df):
     """
@@ -354,14 +344,15 @@ def feature_extraction_pipe(input_file, output_file_train_test, output_file_vali
     add_acc_age_days(spark)
     add_avg_sess_length_min(spark)
     add_gender_dummy_vars(spark)
-    features_df =add_pref_user_system(spark) # fail
+    features_df = add_pref_user_system(spark) # fail
     features_df = add_avg_page_clicks_p_sess(spark)
-
-    # Down-sampling of the churn=1 class to avoid bias
-    features_df = downsampling_churned_users(spark, features_df)
 
     # Split to training/test and validation data
     train_test, validation = train_test_val_split(spark, features_df)
+
+    # Add a weight column to compensate imbalanced classes
+    train_test = add_instance_weights(spark, train_test)
+    validation = add_instance_weights(spark, validation)
 
     # save the dataframe
     train_test.write.parquet(output_file_train_test)

@@ -28,7 +28,7 @@ def evaluate_model(data_set, model_path = None, label_col='churn'):
     """
 
     # Extract the evaluator
-    evaluator = MulticlassClassificationEvaluator(labelCol=label_col,predictionCol='prediction')
+    evaluator = MulticlassClassificationEvaluator(labelCol=label_col,predictionCol='prediction',weightCol='weightCol')
 
     # Calculate the metrics
     recall = evaluator.evaluate(data_set, {evaluator.metricName: "weightedRecall"})
