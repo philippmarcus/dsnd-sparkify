@@ -8,7 +8,7 @@ Some users within this event log cancelled their subscription. The goal of this 
 
 ## Project results
 
-The results can be found in the write-up [here](https://github.com/philippmarcus/dsnd-sparkify/blob/master/writeup.md).
+The results can be found in the write-up on my blog [here](https://philippmarcus.github.io/sparkify/).
 
 ## Usage instructions
 
